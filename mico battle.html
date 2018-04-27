@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style>
+canvas {
+    border:1px solid #d3d3d3;
+    background-color: #f1f1f1;
+}
+</style>
+</head>
+<body onload="startGame()">
+<script>
+var bluePiece,redPiece,blackPiece,canvas,blueBullet,redBullet,scoreBoard,myScore,redScore=0,blueScore=0;
+
+function startGame() {
+    bluePiece = new component(30, 30, "blue", 20, 200,2,1,"blue");
+	redPiece=new component(30,30,"red", 580,200,2,1,"red");
+	blackPiece=new component(30,30,"black", 250,120,2,0,"stone");
+	myScore = new component("30px", "Consolas", "black", 150, 50,0,0, "text");
+	blueBullet="";
+	redBullet="";
+	myGameArea.start();
+}
+
+var myGameArea = {
+    canvas : document.createElement("canvas"),
+	scoreBoard : document.createElement("canvas"),
+    start : function() {
+        this.canvas.width = 600;
+        this.canvas.height = 400;
+        this.canvas.context = this.canvas.getContext("2d");
+		this.scoreBoard.width = 600;
+        this.scoreBoard.height = 70;
+        this.scoreBoard.context = this.scoreBoard.getContext("2d");
+        document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+		document.body.insertBefore(this.scoreBoard, document.body.childNodes[1]);
+        this.interval = setInterval(updateGameArea, 20);
+        window.addEventListener('keydown', function (e) {
+            e.preventDefault();
+            myGameArea.keys = (myGameArea.keys || []);
+            myGameArea.keys[e.keyCode] = (e.type == "keydown");
+        })
+        window.addEventListener('keyup', function (e) {
+            myGameArea.keys[e.keyCode] = (e.type == "keydown");
+        })
+    },
+    stop : function() {
+        clearInterval(this.interval);
+    },    
+    clear : function() {
+        this.canvas.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+}
+
+function component(width, height, color, x, y,moveAngle,hit,type) {
+	
+    this.type = type;
+    this.width = width;
+    this.height = height;
+    this.speed = 0;
+    this.angle = 0;
+    this.moveAngle = moveAngle;
+    this.x = x;
+    this.y = y;   
+	this.hit=hit;
+	this.score=0;
+    this.update = function() {
+        gamectx = myGameArea.canvas.context;
+        gamectx.save();
+        gamectx.translate(this.x, this.y);
+        gamectx.rotate(this.angle);
+        gamectx.fillStyle = color;
+        gamectx.fillRect(this.width / -2, this.height / -2, this.width, this.height);
+        gamectx.restore();   
+		if(this.type=="text"){
+			scorectx=myGameArea.scoreBoard.context;
+			scorectx.font = "48px serif";
+			scorectx.fillText("SCORE : "+blueScore +" - "+redScore, this.x, this.y);
+			if(blueScore==5){
+				myGameArea.stop();
+				alert("blue wins!!");
+			}
+			if(redScore==5){
+				myGameArea.stop();
+				alert("red wins!!");
+			}
+		}
+    }
+    this.newPos = function(obstacle,opponent,displayScore) {
+        this.angle += this.moveAngle * Math.PI / 180;
+		if(this.type!="bullet"){
+			if(this.x>600){this.x=0;}
+			if(this.x<0){this.x=600;} 
+			if(this.y>400){this.y=0;}
+			if(this.y<0){this.y=400;} 
+		}
+		 if(obstacle){
+			 if(this.x < (obstacle.x + obstacle.width)  && (this.x + this.width)  > obstacle.x && this.y < (obstacle.y + obstacle.height) && (this.y + this.height) > obstacle.y){
+				if(obstacle.hit==1){
+					if(opponent.type=="blue"){ blueScore++;}
+					if(opponent.type=="red"){ redScore++;}
+					myGameArea.stop();
+					myGameArea.clear();
+					startGame();
+				}
+				else{
+					obstacle.hit=1;
+					this.speed=-20;
+					obstacle.speed=20;
+					obstacle.angle=this.angle;
+					obstacle.moveAngle=0;
+				}
+				
+			 }
+		 }
+		this.x += this.speed * Math.sin(this.angle);
+        this.y -= this.speed * Math.cos(this.angle);
+			
+    }
+	
+}
+
+function updateGameArea() {
+    myGameArea.clear();
+    bluePiece.moveAngle = 3;
+	redPiece.moveAngle=3;
+    bluePiece.speed = 0;
+	redPiece.speed=0;
+	if(blackPiece.hit==0){
+		blackPiece.speed=0;
+		blackPiece.moveAngle=2;
+	}
+	if(blackPiece.hit==1){
+		blackPiece.speed=3;
+		blackPiece.moveAngle=0;
+	}
+    if (myGameArea.keys && myGameArea.keys[65]) {
+		bluePiece.moveAngle = 0;
+		bluePiece.speed=3;
+	}
+    if (myGameArea.keys && myGameArea.keys[37]) { 
+		redPiece.moveAngle=0; 
+		redPiece.speed=3;
+	}
+    if (myGameArea.keys && myGameArea.keys[83]) {
+		blueBullet=new component(10,10,"blue", bluePiece.x,bluePiece.y,2,1,"bullet");
+		blueBullet.moveAngle=0;
+		blueBullet.speed=10;
+		blueBullet.angle=bluePiece.angle;
+		
+	}
+    if (myGameArea.keys && myGameArea.keys[38]) {
+		redBullet=new component(10,10,"red", redPiece.x, redPiece.y,2,1,"bullet");
+		redBullet.moveAngle=0;
+		redBullet.speed=10;
+		redBullet.angle=redPiece.angle;
+	}
+	
+	
+	blackPiece.newPos();
+    bluePiece.newPos(blackPiece,redPiece,myScore);
+	redPiece.newPos(blackPiece,bluePiece,myScore);
+	blackPiece.update();
+    bluePiece.update();
+	redPiece.update();
+	
+	if(blueBullet){
+		blueBullet.newPos(redPiece,bluePiece,myScore);
+		blueBullet.update();
+	}
+	if(redBullet){
+		redBullet.newPos(bluePiece,redPiece,myScore);
+		redBullet.update();
+	}
+	//myScore.text="SCORE : "+bluePiece.score+ " - "+redPiece.score;
+	myScore.update();
+}
+</script> 
+
+</body>
+</html>
